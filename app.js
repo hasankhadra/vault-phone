@@ -171,8 +171,8 @@ function hiddenQ(q) {
 // ---------- rendering ----------
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const SYM = [['🩺', /health|insurance|medical|clinic/], ['💵', /\$|invoice|payment|paid|ron\b|lei|eur|money|salary/], ['🏛️', /igi|anaf|permit|visa|tax|residence|embassy|onrc|address/],
-  ['🎓', /class|course|tascr|ibd|lecture|thesis|exam|presentation|upb/], ['🎁', /birthday|gift/], ['🏠', /flat|lease|rent|apartment|landlord/], ['💼', /kontas|milo|payroll|contract|mandate|micro/]];
+const SYM = [['🎁', /birthday|gift/], ['🩺', /health|insurance|medical|clinic/], ['💵', /\$|invoice|payment|paid|ron\b|lei|eur|money|salary/], ['🏛️', /igi|anaf|permit|visa|tax|residence|embassy|onrc|address/],
+  ['🎓', /class|course|tascr|ibd|lecture|thesis|exam|presentation|upb/], ['🏠', /flat|lease|rent|apartment|landlord/], ['💼', /kontas|milo|payroll|contract|mandate|micro/]];
 const glyph = t => (SYM.find(([, re]) => re.test(t.toLowerCase())) || ['📅'])[0];
 const patina = d => d >= 60 ? 'fossil' : d >= 14 ? 'cobweb' : d >= 7 ? 'dusty' : '';
 const WEB = `<svg class="web" viewBox="0 0 52 52"><path d="M52 0L24 28M52 0L52 34M52 0L18 0M52 0L32 40M52 0L12 16"/><path d="M43 0Q45 7 52 9M34 0Q38 11 52 18M25 0Q30 17 52 27"/></svg>`;
@@ -427,7 +427,21 @@ function setStatus(t) { $('#status').textContent = t; }
 $('#refresh').onclick = () => { $('#refresh .wheel').style.animation = 'click .6s'; setTimeout(() => $('#refresh .wheel').style.animation = '', 650); load(); };
 $('#setupgo').onclick = () => { try { cfg = decodeSetup($('#setupcode').value); LS.set('cfg', cfg); window.__cfgName = cfg.n; $('#setup').hidden = true; load(); } catch { $('#setupcode').value = ''; $('#setupcode').placeholder = "That code didn't work. Try again."; } };
 if (!cfg) $('#setup').hidden = false; else load();
+// First visit in Safari: how to put it on the Home Screen (the setup travels in the link, and a copy
+// button is there in case the Home Screen app opens without it).
+const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+if (cfg && !standalone && !LS.get('installHintSeen', false)) {
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const el = document.createElement('div'); el.className = 'tile qtile';
+  el.innerHTML = `<div class="label">Put Vault on your Home Screen</div><div class="quip" style="margin-top:6px">Tap <b>Share</b> (the square with the arrow) → <b>Add to Home Screen</b>. Then open it from there.</div>
+    <div class="choices"><button class="pill sm" id="copycode">Copy setup code</button><button class="pill ghost sm" id="hidehint">Done</button></div>
+    <div class="hint">If the Home Screen app asks for a setup code, paste this.</div>`;
+  $('#main').prepend(el);
+  $('#copycode').onclick = async () => { try { await navigator.clipboard.writeText(code); $('#copycode').textContent = 'Copied ✓'; } catch { prompt('Copy this setup code', code); } };
+  $('#hidehint').onclick = () => { LS.set('installHintSeen', true); el.remove(); };
+}
 if (location.hash.includes('selftest') && cfg && cfg.b) selftest();
+if (location.hash.includes('opendeck') && cfg && cfg.b) setTimeout(async () => { await load(); openDeck((drawer.questions || []).filter(q => !hiddenQ(q)).slice(0, 5)); if (location.hash.includes('explain')) $('#qex').click(); }, 0);
 async function selftest() {
   const out = [];
   try {
